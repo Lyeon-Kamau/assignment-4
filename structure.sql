@@ -86,3 +86,55 @@ CREATE TABLE PointsHistory (
 INDEX idx_history_customer (CustomerID),
     INDEX idx_history_date (AwardedDate)
 ) ENGINE=InnoDB;
+DELIMITER $$
+
+CREATE TRIGGER trg_award_loyalty_points
+AFTER UPDATE ON Rentals
+FOR EACH ROW
+BEGIN
+    DECLARE points_to_award DECIMAL(10,2);
+    DECLARE days_remaining INT;
+    DECLARE last_update_time TIMESTAMP;
+
+    -- Fire only when status changes to Completed
+    IF NEW.Status = 'Completed' AND OLD.Status <> 'Completed' THEN
+        
+        -- Calculate remaining days in current month
+        SET days_remaining = DAY(LAST_DAY(CURDATE())) - DAY(CURDATE());
+
+        -- Points formula
+        SET points_to_award = days_remaining / 8.0;
+
+        -- Get last update time (if exists)
+        SELECT LastUpdated 
+        INTO last_update_time
+        FROM CustomerPoints
+        WHERE CustomerID = NEW.CustomerID;
+
+        -- If points exist and older than 6 months → reset
+        IF last_update_time IS NOT NULL 
+           AND last_update_time < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL 6 MONTH) THEN
+
+            UPDATE CustomerPoints
+            SET TotalPoints = 0
+            WHERE CustomerID = NEW.CustomerID;
+
+        END IF;
+
+        -- Add new points (insert or update)
+        INSERT INTO CustomerPoints (CustomerID, TotalPoints)
+        VALUES (NEW.CustomerID, points_to_award)
+        ON DUPLICATE KEY UPDATE
+            TotalPoints = TotalPoints + points_to_award,
+            LastUpdated = CURRENT_TIMESTAMP;
+
+        -- History record
+        INSERT INTO PointsHistory 
+            (CustomerID, RentalID, PointsAwarded, DaysRemaining)
+        VALUES 
+            (NEW.CustomerID, NEW.RentalID, points_to_award, days_remaining);
+
+    END IF;
+END$$
+
+DELIMITER ;
