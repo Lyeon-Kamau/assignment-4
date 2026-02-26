@@ -1,84 +1,94 @@
--- Customers Table 
+-- phpMyAdmin SQL Dump
+-- version 5.2.1
+-- https://www.phpmyadmin.net/
+--
+-- Host: 127.0.0.1
+-- Generation Time: Feb 26, 2026 at 11:23 AM
+-- Server version: 10.4.32-MariaDB
+-- PHP Version: 8.0.30
 
-CREATE TABLE Customers (
-    CustomerID INT PRIMARY KEY AUTO_INCREMENT,
-    CustomerName VARCHAR(100) NOT NULL,
-    Email VARCHAR(100) UNIQUE NOT NULL,
-    Phone VARCHAR(20),
-    Address VARCHAR(255),
-    RegistrationDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_customer_email (Email),
-    INDEX idx_customer_name (CustomerName)
-) ENGINE=InnoDB;
+SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+START TRANSACTION;
+SET time_zone = "+00:00";
 
 
--- Vehicles Table 
+/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;
+/*!40101 SET NAMES utf8mb4 */;
 
-CREATE TABLE Vehicles (
-    VehicleID INT PRIMARY KEY AUTO_INCREMENT,
-    Make VARCHAR(50) NOT NULL,
-    Model VARCHAR(50) NOT NULL,
-    Year INT NOT NULL,
-    LicensePlate VARCHAR(20) UNIQUE NOT NULL,
-    DailyRate DECIMAL(10, 2) NOT NULL,
-    Status ENUM('Available', 'Rented', 'Unavailable') DEFAULT 'Available',
-    CreatedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    INDEX idx_vehicles_search (Status, DailyRate, Year),
-    INDEX idx_vehicles_make_model (Make, Model),
-    INDEX idx_vehicle_rate (DailyRate)
-) ENGINE=InnoDB;
+--
+-- Database: `assignment 4`
+--
+CREATE DATABASE IF NOT EXISTS `assignment 4` DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+USE `assignment 4`;
 
--- Rentals Table 
-CREATE TABLE Rentals (
-    RentalID INT PRIMARY KEY AUTO_INCREMENT,
-    CustomerID INT NOT NULL,
-    VehicleID INT NOT NULL,
-    RentalDate DATE NOT NULL,
-    ReturnDate DATE,
-    Status ENUM('Reserved', 'Active', 'Completed', 'Cancelled') DEFAULT 'Active',
-    TotalCost DECIMAL(10, 2),
-    CreatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    UpdatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
-    FOREIGN KEY (VehicleID) REFERENCES Vehicles(VehicleID),
-    INDEX idx_rentals_customer (CustomerID),
-    INDEX idx_rentals_vehicle (VehicleID),
-    INDEX idx_rentals_dates (RentalDate, ReturnDate),
-    INDEX idx_rentals_status (Status),
-    INDEX idx_rentals_date_status (RentalDate, Status, VehicleID),
-    INDEX idx_rentals_return (ReturnDate)
-) ENGINE=InnoDB;
+-- --------------------------------------------------------
 
--- CustomerPoints Table 
-CREATE TABLE CustomerPoints (
-    PointID INT PRIMARY KEY AUTO_INCREMENT,
-    CustomerID INT NOT NULL,
-    TotalPoints DECIMAL(10, 2) DEFAULT 0.00,
-    LastUpdated TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
-    UNIQUE KEY (CustomerID),
-    INDEX idx_points_total (TotalPoints DESC)
-) ENGINE=InnoDB;
+--
+-- Table structure for table `customerpoints`
+--
 
--- PointsHistory Table 
-CREATE TABLE PointsHistory (
-    HistoryID INT PRIMARY KEY AUTO_INCREMENT,
-    CustomerID INT NOT NULL,
-    RentalID INT NOT NULL,
-    PointsAwarded DECIMAL(10, 2),
-    AwardedDate TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    DaysRemaining INT,
-    FOREIGN KEY (CustomerID) REFERENCES Customers(CustomerID),
-    FOREIGN KEY (RentalID) REFERENCES Rentals(RentalID),
-    INDEX idx_history_customer (CustomerID),
-    INDEX idx_history_date (AwardedDate)
-) ENGINE=InnoDB;
+CREATE TABLE `customerpoints` (
+  `PointID` int(11) NOT NULL,
+  `CustomerID` int(11) NOT NULL,
+  `TotalPoints` decimal(10,2) DEFAULT 0.00,
+  `LastUpdated` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `customers`
+--
+
+CREATE TABLE `customers` (
+  `CustomerID` int(11) NOT NULL,
+  `CustomerName` varchar(100) NOT NULL,
+  `Email` varchar(100) NOT NULL,
+  `Phone` varchar(20) DEFAULT NULL,
+  `Address` varchar(255) DEFAULT NULL,
+  `RegistrationDate` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `pointshistory`
+--
+
+CREATE TABLE `pointshistory` (
+  `HistoryID` int(11) NOT NULL,
+  `CustomerID` int(11) NOT NULL,
+  `RentalID` int(11) NOT NULL,
+  `PointsAwarded` decimal(10,2) DEFAULT NULL,
+  `AwardedDate` timestamp NOT NULL DEFAULT current_timestamp(),
+  `DaysRemaining` int(11) DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `rentals`
+--
+
+CREATE TABLE `rentals` (
+  `RentalID` int(11) NOT NULL,
+  `CustomerID` int(11) NOT NULL,
+  `VehicleID` int(11) NOT NULL,
+  `RentalDate` date NOT NULL,
+  `ReturnDate` date DEFAULT NULL,
+  `Status` enum('Reserved','Active','Completed','Cancelled') DEFAULT 'Active',
+  `TotalCost` decimal(10,2) DEFAULT NULL,
+  `CreatedAt` timestamp NOT NULL DEFAULT current_timestamp(),
+  `UpdatedAt` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+--
+-- Triggers `rentals`
+--
 DELIMITER $$
-
-CREATE TRIGGER trg_award_loyalty_points
-AFTER UPDATE ON Rentals
-FOR EACH ROW
-BEGIN
+CREATE TRIGGER `trg_award_loyalty_points` AFTER UPDATE ON `rentals` FOR EACH ROW BEGIN
     DECLARE points_to_award DECIMAL(10,2);
     DECLARE days_remaining INT;
     DECLARE last_update_time TIMESTAMP;
@@ -122,98 +132,138 @@ BEGIN
             (NEW.CustomerID, NEW.RentalID, points_to_award, days_remaining);
 
     END IF;
-END$$
-
+END
+$$
 DELIMITER ;
-INSERT INTO Customers (CustomerName, Email, Phone, Address)
-SELECT 
-    CONCAT('Customer_', n) AS CustomerName,
-    CONCAT('customer', n, '@dreamrentals.com') AS Email,
-    CONCAT('555-', LPAD(n, 4, '0')) AS Phone,
-    CONCAT(n, ' Test Street, City, State') AS Address
-FROM (
-    SELECT @row := @row + 1 AS n
-    FROM (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t1,
-         (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t2,
-         (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t3,
-         (SELECT @row := 5) r
-    WHERE @row < 1000
-) numbers;
-INSERT INTO Vehicles (Make, Model, Year, LicensePlate, DailyRate, Status)
-SELECT 
-    ELT(MOD(n, 10) + 1, 'Toyota', 'Honda', 'Ford', 'Chevrolet', 'Nissan', 'BMW', 'Mercedes', 'Audi', 'Tesla', 'Hyundai') AS Make,
-    ELT(MOD(n, 7) + 1, 'Sedan', 'SUV', 'Truck', 'Coupe', 'Hatchback', 'Minivan', 'Crossover') AS Model,
-    2020 + MOD(n, 5) AS Year,
-    CONCAT('VEH-', LPAD(n, 4, '0')) AS LicensePlate,
-    35.00 + MOD(n, 100) AS DailyRate,
-    CASE 
-        WHEN MOD(n, 10) = 0 THEN 'Maintenance'
-        WHEN MOD(n, 5) = 0 THEN 'Rented'
-        ELSE 'Available'
-    END AS Status
-FROM (
-    SELECT @row2 := @row2 + 1 AS n
-    FROM (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t1,
-          (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t2,
-         (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t3,
-         (SELECT @row2 := 5) r
-    WHERE @row2 < 500
-) numbers;
-INSERT INTO Rentals (CustomerID, VehicleID, RentalDate, ReturnDate, Status, TotalCost)
-SELECT 
-    1 + MOD(n, 1000) AS CustomerID,
-    1 + MOD(n * 7, 500) AS VehicleID,
-    DATE_SUB(CURDATE(), INTERVAL MOD(n, 365) DAY) AS RentalDate,
-    DATE_ADD(DATE_SUB(CURDATE(), INTERVAL MOD(n, 365) DAY), INTERVAL (3 + MOD(n, 10)) DAY) AS ReturnDate,
-    ELT(MOD(n, 4) + 1, 'Completed', 'Active', 'Reserved', 'Cancelled') AS Status,
-    (40 + MOD(n, 100)) * (3 + MOD(n, 10)) AS TotalCost
-FROM (
-    SELECT @row3 := @row3 + 1 AS n
-    FROM (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t1,
-         (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t2,
-         (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t3,
-         (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t4,
-         (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4 
-          UNION ALL SELECT 5 UNION ALL SELECT 6 UNION ALL SELECT 7 UNION ALL SELECT 8 UNION ALL SELECT 9) t5,
-         (SELECT @row3 := 5) r
-    WHERE @row3 < 100000
-) numbers;
 
-SET FOREIGN_KEY_CHECKS = 1;
-SELECT 'Database Setup Complete!' AS Status;
+-- --------------------------------------------------------
 
-SELECT 
-    'Customers' AS TableName, 
-    COUNT(*) AS RowCount,
-    'User accounts' AS Description
-FROM Customers
-UNION ALL
-SELECT 'Vehicles', COUNT(*), 'Vehicle fleet' FROM Vehicles
-UNION ALL
-SELECT 'Rentals', COUNT(*), 'Rental transactions' FROM Rentals
-UNION ALL
-SELECT 'CustomerPoints', COUNT(*), 'Loyalty accounts' FROM CustomerPoints;
+--
+-- Table structure for table `vehicles`
+--
 
--- Show index information
-SELECT 
-    TABLE_NAME,
-    INDEX_NAME,
-    COLUMN_NAME,
-    SEQ_IN_INDEX,
-    CARDINALITY
-FROM information_schema.STATISTICS
-WHERE TABLE_SCHEMA = DATABASE()
-AND TABLE_NAME IN ('Customers', 'Vehicles', 'Rentals', 'CustomerPoints')
-ORDER BY TABLE_NAME, INDEX_NAME, SEQ_IN_INDEX;
+CREATE TABLE `vehicles` (
+  `VehicleID` int(11) NOT NULL,
+  `Make` varchar(50) NOT NULL,
+  `Model` varchar(50) NOT NULL,
+  `Year` int(11) NOT NULL,
+  `LicensePlate` varchar(20) NOT NULL,
+  `DailyRate` decimal(10,2) NOT NULL,
+  `Status` enum('Available','Rented','Unavailable') DEFAULT 'Available',
+  `CreatedDate` timestamp NOT NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
-SELECT 'Ready for performance testing!' AS Message;
+--
+-- Indexes for dumped tables
+--
+
+--
+-- Indexes for table `customerpoints`
+--
+ALTER TABLE `customerpoints`
+  ADD PRIMARY KEY (`PointID`),
+  ADD UNIQUE KEY `CustomerID` (`CustomerID`),
+  ADD KEY `idx_points_total` (`TotalPoints`);
+
+--
+-- Indexes for table `customers`
+--
+ALTER TABLE `customers`
+  ADD PRIMARY KEY (`CustomerID`),
+  ADD UNIQUE KEY `Email` (`Email`),
+  ADD KEY `idx_customer_email` (`Email`),
+  ADD KEY `idx_customer_name` (`CustomerName`);
+
+--
+-- Indexes for table `pointshistory`
+--
+ALTER TABLE `pointshistory`
+  ADD PRIMARY KEY (`HistoryID`),
+  ADD KEY `RentalID` (`RentalID`),
+  ADD KEY `idx_history_customer` (`CustomerID`),
+  ADD KEY `idx_history_date` (`AwardedDate`);
+
+--
+-- Indexes for table `rentals`
+--
+ALTER TABLE `rentals`
+  ADD PRIMARY KEY (`RentalID`),
+  ADD KEY `idx_rentals_customer` (`CustomerID`),
+  ADD KEY `idx_rentals_vehicle` (`VehicleID`),
+  ADD KEY `idx_rentals_dates` (`RentalDate`,`ReturnDate`),
+  ADD KEY `idx_rentals_status` (`Status`),
+  ADD KEY `idx_rentals_date_status` (`RentalDate`,`Status`,`VehicleID`),
+  ADD KEY `idx_rentals_return` (`ReturnDate`);
+
+--
+-- Indexes for table `vehicles`
+--
+ALTER TABLE `vehicles`
+  ADD PRIMARY KEY (`VehicleID`),
+  ADD UNIQUE KEY `LicensePlate` (`LicensePlate`),
+  ADD KEY `idx_vehicles_search` (`Status`,`DailyRate`,`Year`),
+  ADD KEY `idx_vehicles_make_model` (`Make`,`Model`),
+  ADD KEY `idx_vehicle_rate` (`DailyRate`);
+
+--
+-- AUTO_INCREMENT for dumped tables
+--
+
+--
+-- AUTO_INCREMENT for table `customerpoints`
+--
+ALTER TABLE `customerpoints`
+  MODIFY `PointID` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `customers`
+--
+ALTER TABLE `customers`
+  MODIFY `CustomerID` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `pointshistory`
+--
+ALTER TABLE `pointshistory`
+  MODIFY `HistoryID` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `rentals`
+--
+ALTER TABLE `rentals`
+  MODIFY `RentalID` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `vehicles`
+--
+ALTER TABLE `vehicles`
+  MODIFY `VehicleID` int(11) NOT NULL AUTO_INCREMENT;
+
+--
+-- Constraints for dumped tables
+--
+
+--
+-- Constraints for table `customerpoints`
+--
+ALTER TABLE `customerpoints`
+  ADD CONSTRAINT `customerpoints_ibfk_1` FOREIGN KEY (`CustomerID`) REFERENCES `customers` (`CustomerID`);
+
+--
+-- Constraints for table `pointshistory`
+--
+ALTER TABLE `pointshistory`
+  ADD CONSTRAINT `pointshistory_ibfk_1` FOREIGN KEY (`CustomerID`) REFERENCES `customers` (`CustomerID`),
+  ADD CONSTRAINT `pointshistory_ibfk_2` FOREIGN KEY (`RentalID`) REFERENCES `rentals` (`RentalID`);
+
+--
+-- Constraints for table `rentals`
+--
+ALTER TABLE `rentals`
+  ADD CONSTRAINT `rentals_ibfk_1` FOREIGN KEY (`CustomerID`) REFERENCES `customers` (`CustomerID`),
+  ADD CONSTRAINT `rentals_ibfk_2` FOREIGN KEY (`VehicleID`) REFERENCES `vehicles` (`VehicleID`);
+COMMIT;
+
+/*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
+/*!40101 SET CHARACTER_SET_RESULTS=@OLD_CHARACTER_SET_RESULTS */;
+/*!40101 SET COLLATION_CONNECTION=@OLD_COLLATION_CONNECTION */;
